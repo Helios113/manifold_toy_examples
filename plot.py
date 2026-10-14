@@ -146,19 +146,23 @@ def main():
 
     # ---- 4. isoFLOP profiles ----
     opt = {t: sc.isoflop_optima(env[t]) for t in tasks}
-    fig, ax_t = task_grid(tasks, "eval cross-entropy", "isoFLOP profiles: loss vs N at fixed compute (rings = parabola optimum)")
+    fig, ax_t = task_grid(tasks, "eval cross-entropy", "isoFLOP profiles: loss vs N at fixed compute (rings = parabola-fit optimum N*, placed on the line)")
     for t, ax in ax_t.items():
         prof = opt[t]["profiles"]
         Cs = [c for c, p in prof.items() if len(p) >= 3]
-        for k, C in enumerate(Cs[:: max(1, len(Cs) // 6)]):
+        Cs = [Cs[i] for i in np.unique(np.linspace(0, len(Cs) - 1, 6).round().astype(int))] if Cs else []
+        for k, C in enumerate(Cs):
             pts = prof[C]
-            col = SEQ(0.2 + 0.8 * k / 6)
-            ax.plot(*zip(*pts), "o-", color=col, ms=3, label=f"C={C:.1e}")
+            col = SEQ(0.2 + 0.8 * k / max(len(Cs) - 1, 1))
+            ax.plot(*zip(*pts), "o-", color=col, ms=3)
             o = sc.isoflop_optimum(pts)
             if o:
-                ax.plot(*o, "o", color=INK, ms=6, mfc="none", mew=1.5)
+                # ring at N* on the plotted line (the parabola minimum itself lies below the log-log polyline)
+                lN, lL = np.log([q[0] for q in pts]), np.log([q[1] for q in pts])
+                ax.plot(o[0], np.exp(np.interp(np.log(o[0]), lN, lL)), "o", color=col, ms=7, mfc="none", mew=1.5)
+        if Cs:  # budgets differ per task, so annotate each panel instead of sharing one legend
+            ax.text(0.97, 0.03, f"C = {Cs[0]:.1e} (light) to {Cs[-1]:.1e} (dark)", transform=ax.transAxes, ha="right", va="bottom", fontsize=7, color=INK2)
         ax.set(xscale="log", yscale="log", xlabel="parameters N")
-    legend_once(ax_t)
     save(fig, "04_isoflop.png")
 
     # ---- parametric fits  L = E + A/N^a + B/D^b ----

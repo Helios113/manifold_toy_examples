@@ -9,4 +9,5 @@
 #SBATCH --output=logs/%x_%j.out
 
 cd "$SLURM_SUBMIT_DIR"
+# SWEEP=sphere (default) or SWEEP=plane: sbatch --export=ALL,SWEEP=plane sweep.sbatch
 uv run sweep.py

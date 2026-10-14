@@ -29,12 +29,10 @@ def train(cfg: Config, out_dir: str | Path | None = None, device: str = "cpu") -
     eval_gen = torch.Generator(device=device).manual_seed(10_000 + cfg.seed)
     train_gen = torch.Generator(device=device).manual_seed(cfg.seed)
 
-    manifold = None
-    if cfg.ambient_dim:
-        manifold = Manifold(cfg.intrinsic_dim, cfg.ambient_dim, cfg.curvature, cfg.freq_scale, cfg.manifold_seed, device)
+    manifold = Manifold(cfg.manifold, cfg.intrinsic_dim, cfg.ambient_dim, cfg.n_classes, cfg.manifold_seed, device)
 
     def sample(n, generator):
-        return generate_data(n, cfg.intrinsic_dim, cfg.space_split, cfg.box_size, generator, device, manifold, with_one_hot=False)
+        return generate_data(n, manifold, generator, with_one_hot=False)
 
     x_te, y_te, _ = sample(cfg.n_eval, eval_gen)
 

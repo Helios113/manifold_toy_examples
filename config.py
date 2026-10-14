@@ -1,3 +1,4 @@
+
 import os
 from dataclasses import dataclass, field
 
@@ -7,12 +8,10 @@ class Config:
     # data (online: every step draws a fresh batch, so there are no epochs)
     intrinsic_dim: int = 2
     space_split: int = 3  # n_classes = space_split ** intrinsic_dim
-    box_size: float = 1.0
     n_eval: int = 20000  # fixed held-out set used for logging
-    # optional manifold: points live on an intrinsic_dim-dim manifold in R^ambient_dim (None = plain box)
-    ambient_dim: int | None = None
-    curvature: float = 0.0  # 0 = flat linear subspace, larger = more curved
-    freq_scale: float = 2.0
+    # the data manifold ("sphere": S^intrinsic_dim, "plane": flat intrinsic_dim-ball) is rotated into R^ambient_dim
+    manifold: str = "sphere"
+    ambient_dim: int = 16
     manifold_seed: int = 0
 
     # model
@@ -30,7 +29,7 @@ class Config:
 
     @property
     def input_dim(self) -> int:
-        return self.ambient_dim or self.intrinsic_dim
+        return self.ambient_dim
 
     @property
     def n_classes(self) -> int:
@@ -45,7 +44,7 @@ class SweepConfig:
     space_split: list[int] = field(default_factory=lambda: [2, 3, 4, 5])
     lr: list[float] = field(default_factory=lambda: [1e-4, 3e-4, 1e-3, 3e-3])
     steps: list[int] = field(default_factory=lambda: [80000])  # data budget = steps * batch_size
-    name: str = "box"  # used for output folders: plots/<name>, results/<name>
+    name: str = "sphere"  # used for output folders: plots/<name>, results/<name>
     out_dir: str = "runs"
     workers_per_gpu: int = 8  # processes sharing each GPU (tiny models are launch-bound)
     n_workers: int = 62  # CPU-only fallback
@@ -53,8 +52,7 @@ class SweepConfig:
 
 # edit these to change the experiment
 CONFIG = Config()
-SWEEP = SweepConfig()  # plain box
-# same grid, but the points live on a curved `intrinsic_dim`-dim manifold in a 16-dim ambient space
-SWEEP_MANIFOLD = SweepConfig(name="manifold", base=Config(ambient_dim=16, curvature=1.0), out_dir="runs_manifold")
-SWEEPS = {s.name: s for s in (SWEEP, SWEEP_MANIFOLD)}
-ACTIVE_SWEEP = SWEEPS[os.environ.get("SWEEP", "box")]  # select with the SWEEP env var (set in the sbatch scripts)
+SWEEP_SPHERE = SweepConfig(name="sphere", base=Config(manifold="sphere"), out_dir="runs_sphere")  # S^m: compact, smooth, convex
+SWEEP_PLANE = SweepConfig(name="plane", base=Config(manifold="plane"), out_dir="runs_plane")  # flat control, same grid
+SWEEPS = {s.name: s for s in (SWEEP_SPHERE, SWEEP_PLANE)}
+ACTIVE_SWEEP = SWEEPS[os.environ.get("SWEEP", "sphere")]  # select with the SWEEP env var (set in the sbatch scripts)
