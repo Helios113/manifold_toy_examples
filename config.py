@@ -1,6 +1,5 @@
 
-import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -26,6 +25,7 @@ class Config:
     seed: int = 0
     n_evals: int = 60  # log-spaced evaluation points per run
     n_ckpts: int = 5  # log-spaced checkpoints per run
+    track_geometry: int = 0  # >0: at each eval, log kernel / tangent-intersection / restricted-Jacobian diagnostics at this many manifold points
 
     @property
     def input_dim(self) -> int:
@@ -36,23 +36,6 @@ class Config:
         return self.space_split**self.intrinsic_dim
 
 
-@dataclass
-class SweepConfig:
-    base: Config = field(default_factory=Config)
-    intrinsic_dim: list[int] = field(default_factory=lambda: [1, 2, 3])
-    d_model: list[int] = field(default_factory=lambda: [2, 4, 8, 16, 32, 64, 128])
-    space_split: list[int] = field(default_factory=lambda: [2, 3, 4, 5])
-    lr: list[float] = field(default_factory=lambda: [1e-4, 3e-4, 1e-3, 3e-3])
-    steps: list[int] = field(default_factory=lambda: [80000])  # data budget = steps * batch_size
-    name: str = "sphere"  # used for output folders: plots/<name>, results/<name>
-    out_dir: str = "runs"
-    workers_per_gpu: int = 8  # processes sharing each GPU (tiny models are launch-bound)
-    n_workers: int = 62  # CPU-only fallback
-
-
 # edit these to change the experiment
-CONFIG = Config()
-SWEEP_SPHERE = SweepConfig(name="sphere", base=Config(manifold="sphere"), out_dir="runs_sphere")  # S^m: compact, smooth, convex
-SWEEP_PLANE = SweepConfig(name="plane", base=Config(manifold="plane"), out_dir="runs_plane")  # flat control, same grid
-SWEEPS = {s.name: s for s in (SWEEP_SPHERE, SWEEP_PLANE)}
-ACTIVE_SWEEP = SWEEPS[os.environ.get("SWEEP", "sphere")]  # select with the SWEEP env var (set in the sbatch scripts)
+# the single run `uv run python -m training.train` trains: S^2 (sphere), 3 splits per axis (9 classes), d_model 16, with geometry diagnostics logged
+CONFIG = Config(manifold="sphere", intrinsic_dim=2, space_split=3, d_model=16, steps=80000, track_geometry=256)

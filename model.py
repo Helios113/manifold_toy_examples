@@ -19,6 +19,22 @@ class ResMLPBlock(nn.Module):
         return x + self.mlp(self.norm(x))
 
     @torch.no_grad()
+    def jacobian_parts(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """The two x-dependent factors of the Jacobian: J_ln (B, d, d), the LayerNorm Jacobian without gamma,
+        and gelu'(a) (B, d_hidden), the GELU slope at the pre-activation a = W1 LN(x) + b1."""
+        d = x.shape[-1]
+        lin1, act, _ = self.mlp
+        assert isinstance(act, nn.GELU) and act.approximate == "none", "analytic gelu' below is for the exact GELU"
+        c = x - x.mean(-1, keepdim=True)
+        sigma = (c.pow(2).mean(-1, keepdim=True) + self.norm.eps).sqrt()  # (B, 1)
+        xhat = c / sigma
+        eye = torch.eye(d, device=x.device, dtype=x.dtype)
+        J_ln = (eye - 1.0 / d - xhat[:, :, None] * xhat[:, None, :] / d) / sigma[:, :, None]  # (B, d, d)
+        a = lin1(self.norm(x))  # pre-activation, (B, d_hidden)
+        gelu_grad = 0.5 * (1 + torch.erf(a / 2**0.5)) + a * torch.exp(-0.5 * a * a) / (2 * torch.pi) ** 0.5  # Phi(a) + a phi(a)
+        return J_ln, gelu_grad
+
+    @torch.no_grad()
     def jacobian(self, x: torch.Tensor) -> torch.Tensor:
         """Analytic Jacobian df/dx of the block at x, (B, d) -> (B, d, d), J[b, i, j] = d f_i / d x_j.
 
@@ -28,19 +44,10 @@ class ResMLPBlock(nn.Module):
         xhat = (x - mean) / sigma, sigma = sqrt(var + eps),
             J_ln = (I - 1 1^T / d - xhat xhat^T / d) / sigma.
         """
-        d = x.shape[-1]
-        lin1, act, lin2 = self.mlp
-        assert isinstance(act, nn.GELU) and act.approximate == "none", "analytic gelu' below is for the exact GELU"
-        c = x - x.mean(-1, keepdim=True)
-        sigma = (c.pow(2).mean(-1, keepdim=True) + self.norm.eps).sqrt()  # (B, 1)
-        xhat = c / sigma
-        eye = torch.eye(d, device=x.device, dtype=x.dtype)
-        J_ln = (eye - 1.0 / d - xhat[:, :, None] * xhat[:, None, :] / d) / sigma[:, :, None]  # (B, d, d)
-        a = lin1(self.norm(x))  # pre-activation, (B, d_hidden)
-        gelu_grad = 0.5 * (1 + torch.erf(a / 2**0.5)) + a * torch.exp(-0.5 * a * a) / (2 * torch.pi) ** 0.5  # Phi(a) + a phi(a)
-        inner = lin1.weight[None] * 1.0  # (1, d_hidden, d)
+        J_ln, gelu_grad = self.jacobian_parts(x)
+        lin1, _, lin2 = self.mlp
         J_mlp = lin2.weight @ (gelu_grad[:, :, None] * lin1.weight @ (self.norm.weight[:, None] * J_ln))  # (B, d, d)
-        return eye + J_mlp
+        return torch.eye(x.shape[-1], device=x.device, dtype=x.dtype) + J_mlp
 
 
 class ToyModel(nn.Module):
