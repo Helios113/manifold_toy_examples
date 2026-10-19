@@ -1,3 +1,10 @@
 *.pt
 *.out
 *.pyc
+__pycache__/
+.chrome/
+.venv/
+*.npz
+*.html
+*.onnx
+runs_manifold/

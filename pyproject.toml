@@ -1,13 +1,20 @@
 [project]
 name = "manifold-toy-example"
 version = "0.1.0"
-requires-python = ">=3.12"
+requires-python = ">=3.11,<3.12"
 dependencies = [
+    "kaleido>=1.5.0",
     "matplotlib>=3.11.2",
-    "numpy>=2.5.4",
+    "numpy>=2.4",
+    "onnx>=1.23.2",
+    "onnxruntime-training",
+    "onnxscript>=0.7.2",
     "plotly>=7.1.0",
-    "scipy>=1.18.1",
     "torch>=2.13.0",
     "tqdm>=4.70.1",
     "umap-learn>=0.5.12",
 ]
+
+# Custom onnxruntime-training 1.20 build (CUDA 12.6, sm86). It is a cp311 wheel, hence Python 3.11. It provides the `onnxruntime` module.
+[tool.uv.sources]
+onnxruntime-training = { path = "/nfs-share/pa511/code_bases/onnxruntime_build_output/1.20.0_py311_cuda12_sm86/ort_build/RelWithDebInfo/dist/onnxruntime_training-1.20.0+cu126-cp311-cp311-linux_x86_64.whl" }

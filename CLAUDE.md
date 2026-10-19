@@ -14,5 +14,27 @@ Code should use `cuda` when available. The models are tiny and launch-bound, so 
 
 so not use srun, always sbatch so we have logs -- use mauao or ruapehu.
 
+### Nodes
+
+Always check which nodes are free
+Pick the node by this order: ngongotaha if the job fits, else a free one of mauao / ruapehu (check `sinfo -N -o "%N %P %T"` and `squeue`). Always pin with `-w`. 
+
+| Node | `--partition` | `-w` | GPUs | Use when |
+|---|---|---|---|---|
+| ngongotaha | `turing` | `ngongotaha` | 7 x RTX 2080 Ti (11 GB) | Default: tiny models, sweeps, anything that fits in 11 GB. float64 is slow here. |
+| mauao | `ampere` | `mauao` | 8 x A40 (48 GB) | Does not fit on ngongotaha (memory) or ngongotaha is busy. |
+| ruapehu | `hopper` | `ruapehu` | 4 x H100 (2 + 1 + 1) | Needs the most memory / fast float64, or the others are busy. |
+
+Header for any of them: `#SBATCH --partition=<partition>`, `#SBATCH -w <node>`, `#SBATCH --gres=gpu:N`, `#SBATCH --cpus-per-task=<8*N max>`, `#SBATCH --output=logs/%j_%x.out`.
+
 
 DO NOT GO BEYOND WHAT I ASK FOR
+
+Run  things in a non-blocking way; don't wait for batched jobs to finish
+Always run on a free node, unless told otherwise, if a job can run on ngog, then run it there
+
+
+for onnx jobs always run them on ruapehu or mauao -- whichever is free
+
+
+Do not keep suggesting things -- decide what is sufficient and execute it -- no need for endless continuiations

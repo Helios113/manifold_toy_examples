@@ -1,0 +1,49 @@
+{
+ "check": "c02_transcendental",
+ "device": "NVIDIA GeForce RTX 2080 Ti",
+ "claim": "fp32 exp/erf/log/tanh are accurate to a few ulp but not correctly rounded (error > 0.5 ulp occurs)",
+ "verdict": "holds",
+ "measured": {
+  "exp_cpu": {
+   "max_ulp": 0.7407302130013704,
+   "p999_ulp": 0.638250637240707,
+   "mean_ulp": 0.25321738439760355
+  },
+  "exp_cuda": {
+   "max_ulp": 1.8707709666341543,
+   "p999_ulp": 1.458234744403511,
+   "mean_ulp": 0.382519346049197
+  },
+  "erf_cpu": {
+   "max_ulp": 0.6883346326649189,
+   "p999_ulp": 0.5234136122651396,
+   "mean_ulp": 0.24946764513112324
+  },
+  "erf_cuda": {
+   "max_ulp": 1.014567781239748,
+   "p999_ulp": 0.9758792531806975,
+   "mean_ulp": 0.3196270901800506
+  },
+  "log_cpu": {
+   "max_ulp": 0.8938141465187073,
+   "p999_ulp": 0.5550667379088698,
+   "mean_ulp": 0.25075829312873166
+  },
+  "log_cuda": {
+   "max_ulp": 0.8413855619728565,
+   "p999_ulp": 0.5630370906125753,
+   "mean_ulp": 0.2517756466855919
+  },
+  "tanh_cpu": {
+   "max_ulp": 0.5130260717123747,
+   "p999_ulp": 0.5038191426098345,
+   "mean_ulp": 0.24990005665555132
+  },
+  "tanh_cuda": {
+   "max_ulp": 1.775252291932702,
+   "p999_ulp": 1.600917172623795,
+   "mean_ulp": 0.3097418156587584
+  }
+ },
+ "note": "0.5 ulp would be correct rounding; the standard model's u|result| term then underestimates by the factor max_ulp/0.5 for these functions"
+}

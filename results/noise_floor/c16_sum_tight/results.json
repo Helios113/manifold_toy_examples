@@ -1,0 +1,138 @@
+{
+ "check": "c16_sum_tight",
+ "device": "NVIDIA GeForce RTX 2080 Ti",
+ "claim": "gamma_n sum|x| is a true worst-case bound and is nearly attained by [2^24, 1, ..., 1]; random sequential error ~ sqrt(n) u",
+ "verdict": "holds",
+ "measured": {
+  "adversarial": [
+   {
+    "n": 10,
+    "computed": 16777216.0,
+    "error": 10.0,
+    "bound": 10.00001192093606,
+    "err_over_bound": 0.999998807907815
+   },
+   {
+    "n": 100,
+    "computed": 16777216.0,
+    "error": 100.0,
+    "bound": 100.00119210000096,
+    "err_over_bound": 0.9999880791420989
+   },
+   {
+    "n": 1000,
+    "computed": 16777216.0,
+    "error": 1000.0,
+    "bound": 1000.1192163954017,
+    "err_over_bound": 0.999880797815453
+   },
+   {
+    "n": 10000,
+    "computed": 16777216.0,
+    "error": 10000.0,
+    "bound": 10011.928038620128,
+    "err_over_bound": 0.9988086172239636
+   },
+   {
+    "n": 100000,
+    "computed": 16777216.0,
+    "error": 100000.0,
+    "bound": 101199.24092846192,
+    "err_over_bound": 0.988149704311422
+   }
+  ],
+  "random": [
+   {
+    "n": 16,
+    "seq_median": 4.035770584425669e-08,
+    "seq_max": 1.9216889251776965e-07,
+    "pairwise_median": 3.0880876063278745e-08,
+    "pairwise_max": 1.1593907099157396e-07
+   },
+   {
+    "n": 32,
+    "seq_median": 4.8975195777470564e-08,
+    "seq_max": 2.7986082366135733e-07,
+    "pairwise_median": 2.7280229583864923e-08,
+    "pairwise_max": 1.046896620487196e-07
+   },
+   {
+    "n": 64,
+    "seq_median": 6.755917757145591e-08,
+    "seq_max": 3.718587944023478e-07,
+    "pairwise_median": 2.734752391721355e-08,
+    "pairwise_max": 1.3039851481307567e-07
+   },
+   {
+    "n": 128,
+    "seq_median": 1.0468340268264449e-07,
+    "seq_max": 5.179182048898802e-07,
+    "pairwise_median": 3.126856151243295e-08,
+    "pairwise_max": 1.2842632237866946e-07
+   },
+   {
+    "n": 256,
+    "seq_median": 1.3787079106419765e-07,
+    "seq_max": 5.691758163426613e-07,
+    "pairwise_median": 2.856404763489866e-08,
+    "pairwise_max": 1.0905869634048981e-07
+   },
+   {
+    "n": 512,
+    "seq_median": 2.30279702338578e-07,
+    "seq_max": 9.110228381955624e-07,
+    "pairwise_median": 3.237631091080189e-08,
+    "pairwise_max": 1.1540721129301332e-07
+   },
+   {
+    "n": 1024,
+    "seq_median": 2.9734382568386745e-07,
+    "seq_max": 1.035505186841482e-06,
+    "pairwise_median": 2.7399072624801422e-08,
+    "pairwise_max": 1.1165102519914066e-07
+   },
+   {
+    "n": 2048,
+    "seq_median": 3.7726032536936094e-07,
+    "seq_max": 1.4919112117496506e-06,
+    "pairwise_median": 3.034166581810996e-08,
+    "pairwise_max": 1.2619174346120623e-07
+   },
+   {
+    "n": 4096,
+    "seq_median": 5.659915008058355e-07,
+    "seq_max": 2.5705686809485646e-06,
+    "pairwise_median": 2.6771954573750477e-08,
+    "pairwise_max": 1.205794061639453e-07
+   },
+   {
+    "n": 8192,
+    "seq_median": 7.655230844446802e-07,
+    "seq_max": 2.8230292048368728e-06,
+    "pairwise_median": 3.2099724442801284e-08,
+    "pairwise_max": 1.193824159640223e-07
+   },
+   {
+    "n": 16384,
+    "seq_median": 1.0546119768341107e-06,
+    "seq_max": 4.867950773494831e-06,
+    "pairwise_median": 2.7883838778293975e-08,
+    "pairwise_max": 1.3455129674142238e-07
+   },
+   {
+    "n": 32768,
+    "seq_median": 1.546034918536234e-06,
+    "seq_max": 6.416889073812873e-06,
+    "pairwise_median": 2.6013605093170508e-08,
+    "pairwise_max": 1.2136032703378644e-07
+   },
+   {
+    "n": 65536,
+    "seq_median": 2.1980462436468097e-06,
+    "seq_max": 8.5125935638099e-06,
+    "pairwise_median": 2.499726551257091e-08,
+    "pairwise_max": 1.133302273546368e-07
+   }
+  ]
+ }
+}

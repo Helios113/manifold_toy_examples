@@ -1,0 +1,28 @@
+{
+ "check": "c03_propagation",
+ "device": "NVIDIA H100 PCIe",
+ "claim": "computed error <= propagated input error + u|result| for + * / (exp is not correctly rounded, so it may exceed)",
+ "verdict": "holds",
+ "measured": {
+  "add": {
+   "frac_within_bound": 1.0,
+   "max_err_over_bound": 0.9999400261427842,
+   "median_err_over_bound": 0.3282971879257848
+  },
+  "mul": {
+   "frac_within_bound": 1.0,
+   "max_err_over_bound": 0.9978000567718741,
+   "median_err_over_bound": 0.3072747609115142
+  },
+  "exp": {
+   "frac_within_bound": 0.819444,
+   "max_err_over_bound": 10.611733566644133,
+   "median_err_over_bound": 0.49881970284983085
+  },
+  "div": {
+   "frac_within_bound": 1.0,
+   "max_err_over_bound": 0.9984386613096881,
+   "median_err_over_bound": 0.30688297074589493
+  }
+ }
+}

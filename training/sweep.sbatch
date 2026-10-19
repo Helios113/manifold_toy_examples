@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
 #SBATCH --time=08:00:00
-#SBATCH --output=logs/%x_%j.out
+#SBATCH --output=logs/%j_%x.out
 
 cd "$SLURM_SUBMIT_DIR"
 # SWEEP=sphere (default) or SWEEP=plane: sbatch --export=ALL,SWEEP=plane training/sweep.sbatch

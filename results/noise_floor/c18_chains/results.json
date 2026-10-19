@@ -1,0 +1,393 @@
+{
+ "check": "c18_chains",
+ "device": "NVIDIA GeForce RTX 2080 Ti",
+ "claim": "chains of operations: the error bound predicted from per-operation theory (with calibrated k for sqrt/div/erf) is not exceeded, in torch and in ONNX Runtime; with TF32 on, the TF32 theory (2 u_tf32 + gamma_n per matmul) and a calibrated matmul coefficient are tested too",
+ "verdict": "holds",
+ "measured": {
+  "ort_cpu_opt0": {
+   "calibration": {
+    "erf": {
+     "max_ulp": 0.9999300111085176,
+     "k": 2.499825027771294
+    },
+    "sqrt": {
+     "max_ulp": 3.6843691039830446,
+     "k": 9.210922759957612
+    },
+    "div": {
+     "max_ulp": 0.4999995734542608,
+     "k": 1.0
+    },
+    "matmul_worst_over_sum_abs": {
+     "16": 2.8527161567961614e-07,
+     "64": 3.377319907051553e-07
+    }
+   },
+   "chains": {
+    "affine3": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.022290591962962226,
+     "median_err_over_bound": 0.0020060908296888054,
+     "median_bound": 3.3591574504674245e-05,
+     "median_err": 6.725467892321202e-08,
+     "max_err": 8.628929761833604e-07,
+     "max_bound": 9.536978057532631e-05,
+     "n": 65536
+    },
+    "layernorm_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.11495353006645699,
+     "median_err_over_bound": 0.015325746026246468,
+     "median_bound": 2.1037412359819133e-06,
+     "median_err": 2.913568933338162e-08,
+     "max_err": 5.341191418040125e-07,
+     "max_bound": 7.4788748772355445e-06,
+     "n": 65536
+    },
+    "gelu_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.5721826710151582,
+     "median_err_over_bound": 0.10257897109151773,
+     "median_bound": 1.6368837820099565e-07,
+     "median_err": 1.3914082760968505e-08,
+     "max_err": 4.431319071684925e-07,
+     "max_bound": 2.397347575547883e-06,
+     "n": 65536
+    },
+    "block": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.019062070592013404,
+     "median_err_over_bound": 0.0013965598174179592,
+     "median_bound": 5.387559337246211e-05,
+     "median_err": 7.517908127974149e-08,
+     "max_err": 1.0903131282269385e-06,
+     "max_bound": 8.605994214344011e-05,
+     "n": 65536
+    },
+    "sqrt_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.4455687195164634,
+     "median_err_over_bound": 0.0600408275368707,
+     "median_bound": 1.0437921882336122e-06,
+     "median_err": 5.3200153060650734e-08,
+     "max_err": 3.5636790340909386e-07,
+     "max_bound": 1.0980233209379331e-06,
+     "n": 327680
+    },
+    "prod_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.8689609725688678,
+     "median_err_over_bound": 0.06596810934045763,
+     "median_bound": 1.513717158158219e-06,
+     "median_err": 8.65768143842871e-08,
+     "max_err": 2.0655951726844535e-06,
+     "max_bound": 8.591248637556613e-06,
+     "n": 196608
+    }
+   }
+  },
+  "ort_cpu_optall": {
+   "calibration": {
+    "erf": {
+     "max_ulp": 0.9999300111085176,
+     "k": 2.499825027771294
+    },
+    "sqrt": {
+     "max_ulp": 3.6843691039830446,
+     "k": 9.210922759957612
+    },
+    "div": {
+     "max_ulp": 0.4999995734542608,
+     "k": 1.0
+    },
+    "matmul_worst_over_sum_abs": {
+     "16": 2.8527161567961614e-07,
+     "64": 3.377319907051553e-07
+    }
+   },
+   "chains": {
+    "affine3": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.022290591962962226,
+     "median_err_over_bound": 0.0020060908296888054,
+     "median_bound": 3.3591574504674245e-05,
+     "median_err": 6.725467892321202e-08,
+     "max_err": 8.628929761833604e-07,
+     "max_bound": 9.536978057532631e-05,
+     "n": 65536
+    },
+    "layernorm_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.11495353006645699,
+     "median_err_over_bound": 0.015325746026246468,
+     "median_bound": 2.1037412359819133e-06,
+     "median_err": 2.913568933338162e-08,
+     "max_err": 5.341191418040125e-07,
+     "max_bound": 7.4788748772355445e-06,
+     "n": 65536
+    },
+    "gelu_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.5721826710151582,
+     "median_err_over_bound": 0.10257897109151773,
+     "median_bound": 1.6368837820099565e-07,
+     "median_err": 1.3914082760968505e-08,
+     "max_err": 4.431319071684925e-07,
+     "max_bound": 2.397347575547883e-06,
+     "n": 65536
+    },
+    "block": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.019062070592013404,
+     "median_err_over_bound": 0.0013965598174179592,
+     "median_bound": 5.387559337246211e-05,
+     "median_err": 7.517908127974149e-08,
+     "max_err": 1.0903131282269385e-06,
+     "max_bound": 8.605994214344011e-05,
+     "n": 65536
+    },
+    "sqrt_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.4455687195164634,
+     "median_err_over_bound": 0.0600408275368707,
+     "median_bound": 1.0437921882336122e-06,
+     "median_err": 5.3200153060650734e-08,
+     "max_err": 3.5636790340909386e-07,
+     "max_bound": 1.0980233209379331e-06,
+     "n": 327680
+    },
+    "prod_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.8689609725688678,
+     "median_err_over_bound": 0.06596810934045763,
+     "median_bound": 1.513717158158219e-06,
+     "median_err": 8.65768143842871e-08,
+     "max_err": 2.0655951726844535e-06,
+     "max_bound": 8.591248637556613e-06,
+     "n": 196608
+    }
+   }
+  },
+  "torch_cpu": {
+   "calibration": {
+    "erf": {
+     "max_ulp": 0.6545547768473625,
+     "k": 1.6363869421184063
+    },
+    "sqrt": {
+     "max_ulp": 0.49999936297535896,
+     "k": 1.0
+    },
+    "div": {
+     "max_ulp": 0.4999995734542608,
+     "k": 1.0
+    },
+    "matmul_worst_over_sum_abs": {
+     "16": 2.8527161567961614e-07,
+     "64": 3.377319907051553e-07
+    }
+   },
+   "chains": {
+    "affine3": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.022290591962962226,
+     "median_err_over_bound": 0.0020060908296888054,
+     "median_bound": 3.3591574504674245e-05,
+     "median_err": 6.725467892321202e-08,
+     "max_err": 8.628929761833604e-07,
+     "max_bound": 9.536978057532631e-05,
+     "n": 65536
+    },
+    "layernorm_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.1218163108537435,
+     "median_err_over_bound": 0.01512759156890648,
+     "median_bound": 1.757356441252081e-06,
+     "median_err": 2.4716833836591068e-08,
+     "max_err": 4.2456912607846675e-07,
+     "max_bound": 5.97173780358521e-06,
+     "n": 65536
+    },
+    "gelu_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.5762370972144168,
+     "median_err_over_bound": 0.11831628524604913,
+     "median_bound": 1.2032888836860757e-07,
+     "median_err": 1.3472215459539583e-08,
+     "max_err": 4.431319071684925e-07,
+     "max_bound": 2.1538176947916747e-06,
+     "n": 65536
+    },
+    "block": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.018206835012927317,
+     "median_err_over_bound": 0.0015165967861893704,
+     "median_bound": 4.826454350185803e-05,
+     "median_err": 7.27999265870416e-08,
+     "max_err": 1.013999515242503e-06,
+     "max_bound": 7.79679127733935e-05,
+     "n": 65536
+    },
+    "sqrt_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.9999389070457811,
+     "median_err_over_bound": 0.2635904199526602,
+     "median_bound": 1.1332107430432058e-07,
+     "median_err": 2.5641791578934203e-08,
+     "max_err": 1.1902219210213616e-07,
+     "max_bound": 1.1920874202646963e-07,
+     "n": 327680
+    },
+    "prod_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.8689609725688678,
+     "median_err_over_bound": 0.06596810934045763,
+     "median_bound": 1.513717158158219e-06,
+     "median_err": 8.65768143842871e-08,
+     "max_err": 2.0655951726844535e-06,
+     "max_bound": 8.591248637556613e-06,
+     "n": 196608
+    }
+   }
+  },
+  "torch_gpu": {
+   "calibration": {
+    "erf": {
+     "max_ulp": 1.008996158838272,
+     "k": 2.5224903970956802
+    },
+    "sqrt": {
+     "max_ulp": 0.49999936297535896,
+     "k": 1.0
+    },
+    "div": {
+     "max_ulp": 0.4999995734542608,
+     "k": 1.0
+    },
+    "matmul_worst_over_sum_abs": {
+     "16": 2.8527161567961614e-07,
+     "64": 3.377319907051553e-07
+    }
+   },
+   "chains": {
+    "affine3": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.022290591962962226,
+     "median_err_over_bound": 0.0020060908296888054,
+     "median_bound": 3.3591574504674245e-05,
+     "median_err": 6.725467892321202e-08,
+     "max_err": 8.628929761833604e-07,
+     "max_bound": 9.536978057532631e-05,
+     "n": 65536
+    },
+    "layernorm_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.11224728300256244,
+     "median_err_over_bound": 0.014328209249046757,
+     "median_bound": 1.757356441252081e-06,
+     "median_err": 2.329550446988904e-08,
+     "max_err": 4.2456912607846675e-07,
+     "max_bound": 5.97173780358521e-06,
+     "n": 65536
+    },
+    "gelu_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.5720770101214427,
+     "median_err_over_bound": 0.10403030962910975,
+     "median_bound": 1.6471274069453518e-07,
+     "median_err": 1.4024608412099848e-08,
+     "max_err": 4.77626316275348e-07,
+     "max_bound": 2.403740268643752e-06,
+     "n": 65536
+    },
+    "block": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.01909172986672356,
+     "median_err_over_bound": 0.0015097555533373033,
+     "median_bound": 4.836146231017065e-05,
+     "median_err": 7.276287516955193e-08,
+     "max_err": 1.05611386036486e-06,
+     "max_bound": 7.812521165019062e-05,
+     "n": 65536
+    },
+    "sqrt_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.9999389070457811,
+     "median_err_over_bound": 0.2635904199526602,
+     "median_bound": 1.1332107430432058e-07,
+     "median_err": 2.5641791578934203e-08,
+     "max_err": 1.1902219210213616e-07,
+     "max_bound": 1.1920874202646963e-07,
+     "n": 327680
+    },
+    "prod_chain": {
+     "frac_within_bound": 1.0,
+     "max_err_over_bound": 0.8689609725688678,
+     "median_err_over_bound": 0.06596810934045763,
+     "median_bound": 1.513717158158219e-06,
+     "median_err": 8.65768143842871e-08,
+     "max_err": 2.0655951726844535e-06,
+     "max_bound": 8.591248637556613e-06,
+     "n": 196608
+    }
+   }
+  }
+ },
+ "variants": [
+  "ort_cpu_opt0",
+  "ort_cpu_optall",
+  "torch_cpu",
+  "torch_gpu"
+ ],
+ "tf32_modes": [],
+ "tf32": {},
+ "chains": [
+  "affine3",
+  "layernorm_chain",
+  "gelu_chain",
+  "block",
+  "sqrt_chain",
+  "prod_chain"
+ ],
+ "meta": {
+  "torch": "2.13.0+cu130",
+  "cuda": "13.0",
+  "gpu": "NVIDIA GeForce RTX 2080 Ti",
+  "onnx": {
+   "onnxruntime": "1.20.0",
+   "available": [
+    "CUDAExecutionProvider",
+    "CPUExecutionProvider"
+   ],
+   "variants": {
+    "ort_cpu_opt0": {
+     "ok": true,
+     "providers": [
+      "CPUExecutionProvider"
+     ]
+    },
+    "ort_cpu_optall": {
+     "ok": true,
+     "providers": [
+      "CPUExecutionProvider"
+     ]
+    },
+    "ort_cuda_opt0": {
+     "ok": false,
+     "error": "Fail(\"[ONNXRuntimeError] : 1 : FAIL : Non-zero status code returned while running ReduceSum node. Name:'' Status Message: CUDA error cudaErrorNoKernelImageForDevice:no kernel image is available for execution on the device\")",
+     "trace": "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/nfs-share/pa511/code_bases/manifold_toy_example/.venv/lib/python3.11/site-packages/onnxruntime/capi/onnxruntime_inference_collection.py\", line 266, in run\n    return self._sess.run(output_names, input_feed, run_options)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nonnxruntime.capi.onnxruntime_pybind11_state.Fail: [ONNXRuntimeError] : 1 : FAIL : Non-zero status code returned while running ReduceSum node. Name:'' Status Message: CUDA error cudaErrorNoKernelImageForDevice:no kernel image is available for execution on the device\n"
+    },
+    "ort_cuda_optall": {
+     "ok": false,
+     "error": "Fail(\"[ONNXRuntimeError] : 1 : FAIL : Non-zero status code returned while running ReduceSum node. Name:'' Status Message: CUDA error cudaErrorNoKernelImageForDevice:no kernel image is available for execution on the device\")",
+     "trace": "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/nfs-share/pa511/code_bases/manifold_toy_example/.venv/lib/python3.11/site-packages/onnxruntime/capi/onnxruntime_inference_collection.py\", line 266, in run\n    return self._sess.run(output_names, input_feed, run_options)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nonnxruntime.capi.onnxruntime_pybind11_state.Fail: [ONNXRuntimeError] : 1 : FAIL : Non-zero status code returned while running ReduceSum node. Name:'' Status Message: CUDA error cudaErrorNoKernelImageForDevice:no kernel image is available for execution on the device\n"
+    },
+    "ort_cuda_tf32": {
+     "ok": false,
+     "error": "Fail(\"[ONNXRuntimeError] : 1 : FAIL : Non-zero status code returned while running ReduceSum node. Name:'' Status Message: CUDA error cudaErrorNoKernelImageForDevice:no kernel image is available for execution on the device\")",
+     "trace": "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/nfs-share/pa511/code_bases/manifold_toy_example/.venv/lib/python3.11/site-packages/onnxruntime/capi/onnxruntime_inference_collection.py\", line 266, in run\n    return self._sess.run(output_names, input_feed, run_options)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nonnxruntime.capi.onnxruntime_pybind11_state.Fail: [ONNXRuntimeError] : 1 : FAIL : Non-zero status code returned while running ReduceSum node. Name:'' Status Message: CUDA error cudaErrorNoKernelImageForDevice:no kernel image is available for execution on the device\n"
+    }
+   }
+  }
+ }
+}
