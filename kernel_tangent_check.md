@@ -34,7 +34,6 @@ We ask: is there a direction that is both tangent to the manifold **and** ignore
 | `s_stack`, `s_T` | zero means the kernel and the tangent space share a direction; small means close to it |
 | `s_J` | smallest stretch of J overall; if this is not zero there is no kernel at all |
 | `kernel_dim` | how many dimensions the kernel has |
-| `max_cos` | how closely the kernel and the tangent space line up (1 = share a direction) |
 | `align` | how much the block's weakest direction points along the tangent space (1 = fully) |
 
 ## What to expect

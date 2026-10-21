@@ -29,6 +29,14 @@ def orth(T: torch.Tensor) -> torch.Tensor:
     return torch.linalg.svd(T, full_matrices=False)[0]
 
 
+def weakest_direction(J: torch.Tensor, T: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """(sigma_min(J), |Q^T v_min|) per point, v_min the right singular vector of J for its smallest singular value, Q = orth(T).
+    Defined for every J (singular or not). Taken from the SVD of J itself: eigh of J^T J squares the condition number."""
+    _, S, Vh = torch.linalg.svd(J)
+    cos = (orth(T).transpose(1, 2) @ Vh[:, -1][..., None]).norm(dim=(1, 2)).clamp(0, 1)
+    return S[:, -1], cos
+
+
 @torch.no_grad()
 def check_block(blk: ResMLPBlock, x: torch.Tensor, T: torch.Tensor, tol: float = 1e-8) -> dict[str, torch.Tensor]:
     """x: (B, d) block inputs; T: (B, d, m) tangent vectors at x in the block's input space (full column rank).
@@ -39,7 +47,6 @@ def check_block(blk: ResMLPBlock, x: torch.Tensor, T: torch.Tensor, tol: float =
       align        |Q^T v_min|: 1 iff the weakest right singular vector v_min of J lies in span T
       s_stack      sigma_min of the stacked matrix [I + K; (I - Q Q^T) W2]: 0 iff ker J meets span T (via the explicit kernel)
       kernel_dim   dim ker J, counted as singular values of I + K below tol * the largest
-      max_cos      largest cosine of a principal angle between ker J and span T (1 = shared direction; nan if ker J = 0)
     """
     B, d, _ = T.shape
     lin1, _, lin2 = blk.mlp
@@ -47,12 +54,10 @@ def check_block(blk: ResMLPBlock, x: torch.Tensor, T: torch.Tensor, tol: float =
     J = blk.jacobian(x)
     Q = orth(T)
 
-    # restricted smallest singular value and alignment of the weakest direction, both from small symmetric eigenproblems
+    # restricted smallest singular value (small symmetric eigenproblem) and alignment of the weakest direction (SVD of J)
     JtJ = J.transpose(1, 2) @ J
     lam_T = torch.linalg.eigvalsh(Q.transpose(1, 2) @ JtJ @ Q)[:, 0]
-    lam, vec = torch.linalg.eigh(JtJ)
-    v_min = vec[:, :, 0]
-    align = (Q.transpose(1, 2) @ v_min[..., None]).norm(dim=(1, 2))
+    S_J, align = weakest_direction(J, T)
 
     # explicit kernel: J v = 0  <=>  v = -W2 u with (I + K) u = 0,  K = D W1 Gamma J_ln W2  (H x H)
     J_ln, g = blk.jacobian_parts(x)
@@ -64,13 +69,8 @@ def check_block(blk: ResMLPBlock, x: torch.Tensor, T: torch.Tensor, tol: float =
     _, Sm, Vh = torch.linalg.svd(M)
     null = (Sm < tol * Sm[:, :1]).to(x.dtype)  # (B, H): which right singular vectors of I + K are null vectors
     kernel_dim = null.sum(1)
-    Kv = -W2 @ (Vh.transpose(1, 2) * null[:, None, :])  # (B, d, H): kernel vectors of J (zero columns elsewhere)
-    Uk, Sk, _ = torch.linalg.svd(Kv)
-    kb = Uk[:, :, : Sk.shape[1]] * (Sk > 1e-6 * Sk[:, :1].clamp_min(1e-300)).to(x.dtype)[:, None, :] * (kernel_dim > 0).to(x.dtype)[:, None, None]
-    max_cos = torch.linalg.svdvals(Q.transpose(1, 2) @ kb)[:, 0]
-    max_cos = torch.where(kernel_dim > 0, max_cos, torch.full_like(max_cos, float("nan")))
 
-    return dict(s_J=lam[:, 0].clamp_min(0).sqrt(), s_T=lam_T.clamp_min(0).sqrt(), align=align, s_stack=s_stack, kernel_dim=kernel_dim, max_cos=max_cos)
+    return dict(s_J=S_J, s_T=lam_T.clamp_min(0).sqrt(), align=align, s_stack=s_stack, kernel_dim=kernel_dim)
 
 
 @torch.no_grad()
@@ -105,11 +105,6 @@ def block_point_metrics(blk: ResMLPBlock, x: torch.Tensor, T: torch.Tensor) -> d
     return check_block(blk, x, T) | dict(vol=r["vol"], det=r["det"], overlap=r["overlap"], sign_det_J=r["sign_det_J"], push_ratio=S[:, -1] / S[:, 0])
 
 
-def _med(t: torch.Tensor) -> float | None:
-    t = t[torch.isfinite(t)]
-    return t.median().item() if len(t) else None
-
-
 def summarise(m: dict[str, torch.Tensor]) -> dict[str, float | None]:
     """Per-point metrics -> scalars (medians, minima and fractions over the sampled points), JSON friendly."""
     return {
@@ -122,8 +117,9 @@ def summarise(m: dict[str, torch.Tensor]) -> dict[str, float | None]:
         "s_J_median": m["s_J"].median().item(),
         "s_T_min": m["s_T"].min().item(),
         "s_T_median": m["s_T"].median().item(),
-        "max_cos_median": _med(m["max_cos"]),  # None while the kernel is empty
-        "align_median": m["align"].median().item(),
+        "align_median": m["align"].median().item(),  # |Q^T v_min|, always defined (v_min = weakest right singular vector of J)
+        "align_min": m["align"].min().item(),
+        "align_max": m["align"].max().item(),
         "vol_median": m["vol"].median().item(),
         "vol_min": m["vol"].min().item(),
         "overlap_median": m["overlap"].median().item(),

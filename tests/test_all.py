@@ -128,9 +128,9 @@ def test_kernel_forced():
             assert r["kernel_dim"].item() == 1 and r["s_J"].item() < 1e-6  # s_J is Gram-based: resolves only to ~sqrt(eps)
             if expect:
                 assert r["s_T"].item() < 1e-6 and r["s_stack"].item() < 1e-10
-                assert abs(r["max_cos"].item() - 1) < 1e-8 and r["align"].item() > 1 - 1e-8
+                assert r["align"].item() > 1 - 1e-8
             else:
-                assert r["s_T"].item() > 1e-4 and r["s_stack"].item() > 1e-4 and r["max_cos"].item() < 1 - 1e-4
+                assert r["s_T"].item() > 1e-4 and r["s_stack"].item() > 1e-4
 
 
 # ---- restricted Jacobian ------------------------------------------------------------------------------------------

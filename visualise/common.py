@@ -9,7 +9,7 @@ import torch
 from plotly.subplots import make_subplots
 
 from datagen import Manifold
-from diagnostics import _load_run, block_inputs, orth
+from diagnostics import _load_run, block_inputs, orth, weakest_direction
 from model import ToyModel
 
 RUN = Path("runs_single/sphere_i2_s3_d16")
@@ -85,9 +85,8 @@ def pca_figure(model, title, stem):
 def kernel_stats(blk, h, T):
     """Per point: cos(kernel vector, T_pM) and the smallest singular value of J. The kernel vector is the right singular vector of J
     for the smallest singular value, cos = |Q^T v_min| with Q an orthonormal basis of the tangent space."""
-    _, S, Vh = torch.linalg.svd(blk.jacobian(h))
-    cos = (orth(T).transpose(1, 2) @ Vh[:, -1][..., None]).norm(dim=(1, 2)).clamp(0, 1)
-    return cos.numpy(), S[:, -1].numpy()
+    s_min, cos = weakest_direction(blk.jacobian(h), T)
+    return cos.numpy(), s_min.numpy()
 
 
 def sphere_trace(vals, **kw):
