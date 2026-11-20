@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -15,16 +15,25 @@ class Config:
     # model
     d_model: int = 32
     d_hidden: int | None = None  # defaults to 4 * d_model
+    n_blocks: int = 2
+    activation: str = "gelu"  # "gelu" | "leaky_relu"
+    norm_mode: str = "pre"  # "pre" | "prei"
 
     # training
     batch_size: int = 256
-    steps: int = 20000  # total samples seen = steps * batch_size
+    steps: int = 20000  # total samples seen = steps * batch_size; overridden by tokens_per_param
+    tokens_per_param: float | None = None  # if set, steps = ceil(tokens_per_param * n_params / batch_size)
+    mark_tpp: tuple = (20.0, 40.0, 80.0, 160.0)  # eval marks in tokens-per-param units
     lr: float = 1e-3
     lr_decay: bool = False  # optional cosine decay to zero over `steps`
     seed: int = 0
     n_evals: int = 60  # log-spaced evaluation points per run
-    # n_ckpts: int = 5  # log-spaced checkpoints per run
-    # track_geometry: int = 0  # >0: at each eval, log kernel / tangent-intersection / restricted-Jacobian diagnostics at this many manifold points
+    n_ckpts: int = 5  # log-spaced checkpoints per run
+    track_geometry: int = 0  # >0: at each eval, log kernel / tangent-intersection / restricted-Jacobian diagnostics at this many manifold points
+
+    # experiment tracking (trackio; None disables)
+    trackio_project: str | None = None
+    trackio_group: str | None = None
 
     @property
     def input_dim(self) -> int:
@@ -33,3 +42,6 @@ class Config:
     @property
     def n_classes(self) -> int:
         return self.space_split**self.intrinsic_dim
+
+
+CONFIG = Config()
