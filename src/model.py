@@ -2,23 +2,46 @@ import torch
 import torch.nn as nn
 
 
-ResMLPBlock -- pre norm
+def _gelu_grad(act: nn.GELU, a: torch.Tensor) -> torch.Tensor:
+    """Exact-erf GELU derivative Phi(a) + a phi(a)."""
+    assert act.approximate == "none", "analytic gelu' below is for the exact GELU"
+    return 0.5 * (1 + torch.erf(a / 2**0.5)) + a * torch.exp(-0.5 * a * a) / (2 * torch.pi) ** 0.5
 
-ResMLPBlock -- prei norm (norm before and after) x + self.norm2(self.mlp(self.norm(x)))
 
-different actvations GELU and LeakyRelu
+def _leaky_relu_grad(act: nn.LeakyReLU, a: torch.Tensor) -> torch.Tensor:
+    return torch.where(a > 0, torch.ones_like(a), torch.full_like(a, act.negative_slope))
+
+
+_ACTIVATIONS = {
+    "gelu": (nn.GELU, _gelu_grad),
+    "leaky_relu": (nn.LeakyReLU, _leaky_relu_grad),
+}
+
+
+def _ln_jacobian(x: torch.Tensor, eps: float) -> torch.Tensor:
+    """Jacobian of LayerNorm without gamma at x, (B, d) -> (B, d, d)."""
+    d = x.shape[-1]
+    c = x - x.mean(-1, keepdim=True)
+    sigma = (c.pow(2).mean(-1, keepdim=True) + eps).sqrt()  # (B, 1)
+    xhat = c / sigma
+    eye = torch.eye(d, device=x.device, dtype=x.dtype)
+    return (eye - 1.0 / d - xhat[:, :, None] * xhat[:, None, :] / d) / sigma[:, :, None]
 
 
 class ResMLPBlock(nn.Module):
-    """Pre-norm residual block: x + MLP(LayerNorm(x))"""
+    """Pre-norm residual block: x + MLP(LayerNorm(x))."""
 
-    def __init__(self, d_model: int, d_hidden: int | None = None):
+    def __init__(self, d_model: int, d_hidden: int | None = None, activation: str = "gelu"):
         super().__init__()
         d_hidden = d_hidden or 4 * d_model
+        if activation not in _ACTIVATIONS:
+            raise ValueError(f"activation must be one of {list(_ACTIVATIONS)}, got {activation!r}")
+        self.activation_name = activation
+        act_cls, self._act_grad_fn = _ACTIVATIONS[activation]
         self.norm = nn.LayerNorm(d_model)
         self.mlp = nn.Sequential(
             nn.Linear(d_model, d_hidden),
-            nn.GELU(),
+            act_cls(),
             nn.Linear(d_hidden, d_model),
         )
 
@@ -27,47 +50,58 @@ class ResMLPBlock(nn.Module):
 
     @torch.no_grad()
     def jacobian_parts(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """The two x-dependent factors of the Jacobian: J_ln (B, d, d), the LayerNorm Jacobian without gamma,
-        and gelu'(a) (B, d_hidden), the GELU slope at the pre-activation a = W1 LN(x) + b1."""
-        d = x.shape[-1]
+        """The two x-dependent factors of the Jacobian: J_ln (B, d, d), the inner LayerNorm Jacobian without
+        gamma, and act'(a) (B, d_hidden), the activation slope at the pre-activation a = W1 LN(x) + b1."""
         lin1, act, _ = self.mlp
-        assert isinstance(act, nn.GELU) and act.approximate == "none", (
-            "analytic gelu' below is for the exact GELU"
-        )
-        c = x - x.mean(-1, keepdim=True)
-        sigma = (c.pow(2).mean(-1, keepdim=True) + self.norm.eps).sqrt()  # (B, 1)
-        xhat = c / sigma
-        eye = torch.eye(d, device=x.device, dtype=x.dtype)
-        J_ln = (eye - 1.0 / d - xhat[:, :, None] * xhat[:, None, :] / d) / sigma[
-            :, :, None
-        ]  # (B, d, d)
+        J_ln = _ln_jacobian(x, self.norm.eps)
         a = lin1(self.norm(x))  # pre-activation, (B, d_hidden)
-        gelu_grad = (
-            0.5 * (1 + torch.erf(a / 2**0.5))
-            + a * torch.exp(-0.5 * a * a) / (2 * torch.pi) ** 0.5
-        )  # Phi(a) + a phi(a)
-        return J_ln, gelu_grad
+        return J_ln, self._act_grad_fn(act, a)
+
+    @torch.no_grad()
+    def _mlp_jacobian(self, x: torch.Tensor) -> torch.Tensor:
+        """Jacobian of the MLP branch alone (no residual skip): d MLP(LN(x)) / dx, (B, d, d)."""
+        J_ln, act_grad = self.jacobian_parts(x)
+        lin1, _, lin2 = self.mlp
+        return lin2.weight @ (
+            act_grad[:, :, None] * lin1.weight @ (self.norm.weight[:, None] * J_ln)
+        )  # (B, d, d)
 
     @torch.no_grad()
     def jacobian(self, x: torch.Tensor) -> torch.Tensor:
-        """Analytic Jacobian df/dx of the block at x, (B, d) -> (B, d, d), J[b, i, j] = d f_i / d x_j.
+        """Analytic Jacobian df/dx of the block at x, (B, d) -> (B, d, d), J[b, i, j] = d f_i / d x_j."""
+        return torch.eye(x.shape[-1], device=x.device, dtype=x.dtype) + self._mlp_jacobian(x)
 
-        f(x) = x + W2 gelu(W1 LN(x) + b1) + b2, so
-            J = I + W2 diag(gelu'(a)) W1 diag(gamma) J_ln,   a = W1 LN(x) + b1,
-        with gelu'(a) = Phi(a) + a phi(a) (exact erf GELU, the nn.GELU default) and, for LN(x) = gamma * xhat + beta with
-        xhat = (x - mean) / sigma, sigma = sqrt(var + eps),
-            J_ln = (I - 1 1^T / d - xhat xhat^T / d) / sigma.
-        """
-        J_ln, gelu_grad = self.jacobian_parts(x)
-        lin1, _, lin2 = self.mlp
-        J_mlp = lin2.weight @ (
-            gelu_grad[:, :, None] * lin1.weight @ (self.norm.weight[:, None] * J_ln)
-        )  # (B, d, d)
-        return torch.eye(x.shape[-1], device=x.device, dtype=x.dtype) + J_mlp
+
+class PreiNormResMLPBlock(ResMLPBlock):
+    """Prei-norm residual block (norm before and after the MLP): x + LayerNorm2(MLP(LayerNorm(x)))."""
+
+    def __init__(self, d_model: int, d_hidden: int | None = None, activation: str = "gelu"):
+        super().__init__(d_model, d_hidden, activation)
+        self.norm2 = nn.LayerNorm(d_model)
+
+    def forward(self, x):
+        return x + self.norm2(self.mlp(self.norm(x)))
+
+    @torch.no_grad()
+    def jacobian(self, x: torch.Tensor) -> torch.Tensor:
+        """J = I + J_ln2 diag(gamma2) dMLP/dx, with J_ln2 the LayerNorm2 Jacobian at the MLP output."""
+        h = self.mlp(self.norm(x))  # (B, d) MLP output before norm2
+        J_ln2 = _ln_jacobian(h, self.norm2.eps)
+        J_inner = J_ln2 @ (self.norm2.weight[:, None] * self._mlp_jacobian(x))
+        return torch.eye(x.shape[-1], device=x.device, dtype=x.dtype) + J_inner
+
+
+_BLOCK_TYPES = {
+    "pre": ResMLPBlock,
+    "prei": PreiNormResMLPBlock,
+}
 
 
 class SyntheticModel(nn.Module):
-    """Linear embed (intrinsic_dim -> d_model), two pre-norm x+MLP blocks, final LayerNorm, unembed (d_model -> n_classes)."""
+    """Linear embed (intrinsic_dim -> d_model), n_blocks residual blocks, final LayerNorm, unembed (d_model -> n_classes).
+
+    Blocks are assembled once here from _BLOCK_TYPES: norm_mode="pre" gives ResMLPBlock, "prei" gives PreiNormResMLPBlock.
+    """
 
     def __init__(
         self,
@@ -75,12 +109,17 @@ class SyntheticModel(nn.Module):
         d_model: int,
         n_classes: int,
         d_hidden: int | None = None,
+        n_blocks: int = 2,
+        activation: str = "gelu",
+        norm_mode: str = "pre",
     ):
         super().__init__()
+        if norm_mode not in _BLOCK_TYPES:
+            raise ValueError(f"norm_mode must be one of {list(_BLOCK_TYPES)}, got {norm_mode!r}")
+        blk_cls = _BLOCK_TYPES[norm_mode]
         self.embed = nn.Linear(intrinsic_dim, d_model)
         self.blocks = nn.Sequential(
-            ResMLPBlock(d_model, d_hidden),
-            ResMLPBlock(d_model, d_hidden),
+            *[blk_cls(d_model, d_hidden, activation=activation) for _ in range(n_blocks)]
         )
         self.final_norm = nn.LayerNorm(d_model)
         self.unembed = nn.Linear(d_model, n_classes)

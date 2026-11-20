@@ -11,7 +11,7 @@ from tqdm import tqdm
 from config import CONFIG, Config
 from datagen import ManifoldConfig, generate_data, make_manifold
 from diagnostics import model_diagnostics
-from model import ToyModel
+from model import SyntheticModel
 
 
 def log_steps(total: int, n: int) -> list[int]:
@@ -42,7 +42,7 @@ def train(cfg: Config, out_dir: str | Path | None = None, device: str = "cpu", p
     x_te, y_te, _ = sample(cfg.n_eval, eval_gen)
     track_p = manifold.sample_base(cfg.track_geometry, torch.Generator(device=device).manual_seed(20_000 + cfg.seed)) if cfg.track_geometry else None
 
-    model = ToyModel(cfg.input_dim, cfg.d_model, cfg.n_classes, cfg.d_hidden).to(device)
+    model = SyntheticModel(cfg.input_dim, cfg.d_model, cfg.n_classes, cfg.d_hidden).to(device)
     n_params = sum(p.numel() for p in model.parameters())
     opt = torch.optim.Adam(model.parameters(), lr=cfg.lr)
     # cosine decay to zero over the run, so the final loss isn't limited by lr noise
