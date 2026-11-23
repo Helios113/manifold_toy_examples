@@ -6,13 +6,13 @@ from pathlib import Path
 
 import torch
 
-from datagen import Manifold
+from datagen import ManifoldConfig, make_manifold
 from engineered import build_engineered, build_fold
 
 OUT = Path("weights")
 OUT.mkdir(exist_ok=True)
 
-man = Manifold("sphere", 2, 16, 9, 0)
+man = make_manifold("sphere", ManifoldConfig(latent_dim=2, ambient_dim=16, n_classes=9, seed=0))
 p = man.sample_base(6000, torch.Generator().manual_seed(0))
 
 torch.save(build_engineered(man, p).state_dict(), OUT / "dw_a_point.pt")

@@ -1,16 +1,16 @@
-"""The engineered model of visualise_synthetic.py: the random-init ToyModel (seed 0) plus a rank-1 edit of block 0's W2 so that the tangent
+"""The engineered model of visualise_synthetic.py: the random-init SyntheticModel (seed 0) plus a rank-1 edit of block 0's W2 so that the tangent
 vector T*[:, 0] at the sample p[p_star] is an exact kernel vector of the block's Jacobian."""
 
 import torch
 
 from datagen import Manifold
 from diagnostics import block_inputs
-from model import ToyModel
+from model import SyntheticModel
 
 
-def build_engineered(man: Manifold, p: torch.Tensor, p_star: int = 0) -> ToyModel:
+def build_engineered(man: Manifold, p: torch.Tensor, p_star: int = 0) -> SyntheticModel:
     torch.manual_seed(0)
-    model = ToyModel(man.n, 16, man.n_classes).double()
+    model = SyntheticModel(man.n, 16, man.n_classes).double()
     blk, h, T = block_inputs(model, man, p)[0]
     J_ln, g = blk.jacobian_parts(h)
     lin1, _, lin2 = blk.mlp
@@ -21,13 +21,13 @@ def build_engineered(man: Manifold, p: torch.Tensor, p_star: int = 0) -> ToyMode
     return model
 
 
-def build_fold(man: Manifold, steps: int = 8000, batch: int = 2048) -> tuple[ToyModel, torch.Tensor, float]:
-    """A model whose block 0 folds the sphere: the random-init ToyModel (seed 0) with block 0 fitted (fresh samples every step) so that its
+def build_fold(man: Manifold, steps: int = 8000, batch: int = 2048) -> tuple[SyntheticModel, torch.Tensor, float]:
+    """A model whose block 0 folds the sphere: the random-init SyntheticModel (seed 0) with block 0 fitted (fresh samples every step) so that its
     output is the projection along a fixed direction a of the embedded sphere, h -> h - (a . (h - mu)) a, with a the top principal axis of the
     embedded sphere (so the sphere is projected onto a disk, 2-to-1, and J|_T is singular along the circle where a lies in the tangent plane).
     Returns (model, a, relative fit error on fresh samples). Block 1 keeps its random init."""
     torch.manual_seed(0)
-    model = ToyModel(man.n, 16, man.n_classes).double()
+    model = SyntheticModel(man.n, 16, man.n_classes).double()
     gen = torch.Generator().manual_seed(1)
 
     def embedded(n):

@@ -18,18 +18,31 @@ _ACTIVATIONS = {
 }
 
 
-def _ln_jacobian(x: torch.Tensor, eps: float) -> torch.Tensor:
-    """Jacobian of LayerNorm without gamma at x, (B, d) -> (B, d, d)."""
+class RMSNorm(nn.Module):
+    """RMSNorm: y = gamma * x / sqrt(mean(x^2) + eps). No mean subtraction, no bias."""
+
+    def __init__(self, d_model: int, eps: float = 1e-5):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(d_model))
+        self.eps = eps
+
+    def forward(self, x):
+        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps) * self.weight
+
+
+def _rms_jacobian(x: torch.Tensor, eps: float) -> torch.Tensor:
+    """Jacobian of RMSNorm without gamma at x, (B, d) -> (B, d, d).
+
+    y_i = x_i / r with r = sqrt(mean(x^2) + eps), so d y_i / d x_j = (delta_ij - x_i x_j / (d r^2)) / r.
+    """
     d = x.shape[-1]
-    c = x - x.mean(-1, keepdim=True)
-    sigma = (c.pow(2).mean(-1, keepdim=True) + eps).sqrt()  # (B, 1)
-    xhat = c / sigma
+    r = (x.pow(2).mean(-1, keepdim=True) + eps).sqrt()  # (B, 1)
     eye = torch.eye(d, device=x.device, dtype=x.dtype)
-    return (eye - 1.0 / d - xhat[:, :, None] * xhat[:, None, :] / d) / sigma[:, :, None]
+    return (eye - x[:, :, None] * x[:, None, :] / (d * r[:, :, None] ** 2)) / r[:, :, None]
 
 
 class ResMLPBlock(nn.Module):
-    """Pre-norm residual block: x + MLP(LayerNorm(x))."""
+    """Pre-norm residual block: x + MLP(RMSNorm(x))."""
 
     def __init__(self, d_model: int, d_hidden: int | None = None, activation: str = "gelu"):
         super().__init__()
@@ -38,7 +51,7 @@ class ResMLPBlock(nn.Module):
             raise ValueError(f"activation must be one of {list(_ACTIVATIONS)}, got {activation!r}")
         self.activation_name = activation
         act_cls, self._act_grad_fn = _ACTIVATIONS[activation]
-        self.norm = nn.LayerNorm(d_model)
+        self.norm = RMSNorm(d_model)
         self.mlp = nn.Sequential(
             nn.Linear(d_model, d_hidden),
             act_cls(),
@@ -50,20 +63,20 @@ class ResMLPBlock(nn.Module):
 
     @torch.no_grad()
     def jacobian_parts(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """The two x-dependent factors of the Jacobian: J_ln (B, d, d), the inner LayerNorm Jacobian without
-        gamma, and act'(a) (B, d_hidden), the activation slope at the pre-activation a = W1 LN(x) + b1."""
+        """The two x-dependent factors of the Jacobian: J_rms (B, d, d), the inner RMSNorm Jacobian without
+        gamma, and act'(a) (B, d_hidden), the activation slope at the pre-activation a = W1 RMS(x) + b1."""
         lin1, act, _ = self.mlp
-        J_ln = _ln_jacobian(x, self.norm.eps)
+        J_rms = _rms_jacobian(x, self.norm.eps)
         a = lin1(self.norm(x))  # pre-activation, (B, d_hidden)
-        return J_ln, self._act_grad_fn(act, a)
+        return J_rms, self._act_grad_fn(act, a)
 
     @torch.no_grad()
     def _mlp_jacobian(self, x: torch.Tensor) -> torch.Tensor:
-        """Jacobian of the MLP branch alone (no residual skip): d MLP(LN(x)) / dx, (B, d, d)."""
-        J_ln, act_grad = self.jacobian_parts(x)
+        """Jacobian of the MLP branch alone (no residual skip): d MLP(RMS(x)) / dx, (B, d, d)."""
+        J_rms, act_grad = self.jacobian_parts(x)
         lin1, _, lin2 = self.mlp
         return lin2.weight @ (
-            act_grad[:, :, None] * lin1.weight @ (self.norm.weight[:, None] * J_ln)
+            act_grad[:, :, None] * lin1.weight @ (self.norm.weight[:, None] * J_rms)
         )  # (B, d, d)
 
     @torch.no_grad()
@@ -73,21 +86,21 @@ class ResMLPBlock(nn.Module):
 
 
 class PreiNormResMLPBlock(ResMLPBlock):
-    """Prei-norm residual block (norm before and after the MLP): x + LayerNorm2(MLP(LayerNorm(x)))."""
+    """Prei-norm residual block (norm before and after the MLP): x + RMSNorm2(MLP(RMSNorm(x)))."""
 
     def __init__(self, d_model: int, d_hidden: int | None = None, activation: str = "gelu"):
         super().__init__(d_model, d_hidden, activation)
-        self.norm2 = nn.LayerNorm(d_model)
+        self.norm2 = RMSNorm(d_model)
 
     def forward(self, x):
         return x + self.norm2(self.mlp(self.norm(x)))
 
     @torch.no_grad()
     def jacobian(self, x: torch.Tensor) -> torch.Tensor:
-        """J = I + J_ln2 diag(gamma2) dMLP/dx, with J_ln2 the LayerNorm2 Jacobian at the MLP output."""
+        """J = I + diag(gamma2) J_rms2 dMLP/dx, with J_rms2 the RMSNorm2 Jacobian at the MLP output."""
         h = self.mlp(self.norm(x))  # (B, d) MLP output before norm2
-        J_ln2 = _ln_jacobian(h, self.norm2.eps)
-        J_inner = J_ln2 @ (self.norm2.weight[:, None] * self._mlp_jacobian(x))
+        J_rms2 = _rms_jacobian(h, self.norm2.eps)
+        J_inner = self.norm2.weight[:, None] * (J_rms2 @ self._mlp_jacobian(x))
         return torch.eye(x.shape[-1], device=x.device, dtype=x.dtype) + J_inner
 
 
@@ -98,7 +111,7 @@ _BLOCK_TYPES = {
 
 
 class SyntheticModel(nn.Module):
-    """Linear embed (intrinsic_dim -> d_model), n_blocks residual blocks, final LayerNorm, unembed (d_model -> n_classes).
+    """Linear embed (intrinsic_dim -> d_model), n_blocks residual blocks, final RMSNorm, unembed (d_model -> n_classes).
 
     Blocks are assembled once here from _BLOCK_TYPES: norm_mode="pre" gives ResMLPBlock, "prei" gives PreiNormResMLPBlock.
     """
@@ -121,7 +134,7 @@ class SyntheticModel(nn.Module):
         self.blocks = nn.Sequential(
             *[blk_cls(d_model, d_hidden, activation=activation) for _ in range(n_blocks)]
         )
-        self.final_norm = nn.LayerNorm(d_model)
+        self.final_norm = RMSNorm(d_model)
         self.unembed = nn.Linear(d_model, n_classes)
 
     def forward(self, x):

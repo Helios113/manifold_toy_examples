@@ -8,3 +8,12 @@ __pycache__/
 *.html
 *.onnx
 runs_manifold/
+runs_scaling/
+plots/
+logs/
+trackio_logs/
+visualise_old/
+weights/
+*.tex
+*.md
+.vibe/

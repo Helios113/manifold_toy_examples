@@ -11,7 +11,6 @@ from tqdm import tqdm
 
 from config import CONFIG, Config
 from datagen import ManifoldConfig, generate_data, make_manifold
-from diagnostics import model_diagnostics
 from model import SyntheticModel
 
 
@@ -46,7 +45,6 @@ def train(cfg: Config, out_dir: str | Path | None = None, device: str = "cpu", p
         return generate_data(n, manifold, generator, with_one_hot=False)
 
     x_te, y_te, _ = sample(cfg.n_eval, eval_gen)
-    track_p = manifold.sample_base(cfg.track_geometry, torch.Generator(device=device).manual_seed(20_000 + cfg.seed)) if cfg.track_geometry else None
 
     model = SyntheticModel(cfg.input_dim, cfg.d_model, cfg.n_classes, cfg.d_hidden,
                            n_blocks=cfg.n_blocks, activation=cfg.activation, norm_mode=cfg.norm_mode).to(device)
@@ -114,7 +112,6 @@ def train(cfg: Config, out_dir: str | Path | None = None, device: str = "cpu", p
                         eval_acc=(logits.argmax(1) == y_te).float().mean().item(),
                         ema_step_seconds=ema_step_s,
                         eta_seconds=(steps - step) * ema_step_s if ema_step_s is not None else None,
-                        **({"geometry": model_diagnostics(model, manifold, track_p)} if cfg.track_geometry and step in ckpt_at else {}),
                     )
                     history.append(row)
                 run_loss, run_n = 0.0, 0

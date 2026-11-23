@@ -13,7 +13,7 @@ diagnostics would show for a block with that structure.
 ## Setting
 
 - Data manifold: the sphere S^2, rotated into R^16 by a fixed random orthogonal matrix (`Manifold("sphere", 2, 16, 9, seed 0)`).
-- Model: `ToyModel`, embed (16 -> 16), two pre-norm blocks `x + W2 gelu(W1 LN(x) + b1) + b2` with d_hidden = 4 * 16 = 64,
+- Model: `SyntheticModel`, embed (16 -> 16), two pre-norm blocks `x + W2 gelu(W1 LN(x) + b1) + b2` with d_hidden = 4 * 16 = 64,
   final LayerNorm, unembed to 9 classes. Everything in float64, on CPU (`block_inputs` copies the model to CPU).
 - Only block 1 is analysed. Its input is `embed(x)`, and the tangent space at each point is the manifold's analytic
   tangent basis pushed through the affine embedding (`embed.weight @ tangent_basis`).
