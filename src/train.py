@@ -20,21 +20,29 @@ def log_steps(total: int, n: int) -> list[int]:
     return pts.tolist()
 
 
-def train(cfg: Config, out_dir: str | Path | None = None, device: str = "cpu", progress: bool = False, run_name: str | None = None) -> dict:
+def train(cfg: Config, out_dir: str | Path | None = None, device: str = "cpu", progress: bool = False, run_name: str | None = None, resume: bool = False) -> dict:
     """Online training: every step uses a fresh batch. Saves config/metrics/weights/checkpoints to out_dir.
 
     If cfg.tokens_per_param is set, total steps = ceil(tokens_per_param * n_params / batch_size) and the
     cfg.mark_tpp tokens-per-param marks become extra eval points. If cfg.trackio_project is set, every eval
     row is also logged to trackio under run_name.
+
+    If resume=True and out_dir holds checkpoints, training continues from the latest checkpoint (model +
+    optimizer state) up to the new total step count, appending to history.jsonl. The train data stream is
+    reseeded (seed + 1) so the continuation doesn't replay the exact batches of the first leg; the eval set
+    is unchanged.
     """
     out = Path(out_dir) if out_dir else None
     if out:
         out.mkdir(parents=True, exist_ok=True)
+    # resume only makes sense with a checkpoint to resume from; otherwise train fresh
+    resume = resume and out is not None and any(out.glob("ckpt_*.pt"))
 
     torch.manual_seed(cfg.seed)
     # separate generators so the eval set doesn't depend on model init / training stream
     eval_gen = torch.Generator(device=device).manual_seed(10_000 + cfg.seed)
-    train_gen = torch.Generator(device=device).manual_seed(cfg.seed)
+    # on resume, use a fresh data stream (seed + 1) instead of replaying the first leg's batches
+    train_gen = torch.Generator(device=device).manual_seed(cfg.seed + (1 if resume else 0))
 
     manifold = make_manifold(cfg.manifold, ManifoldConfig(
         latent_dim=cfg.intrinsic_dim, ambient_dim=cfg.ambient_dim,
@@ -62,10 +70,20 @@ def train(cfg: Config, out_dir: str | Path | None = None, device: str = "cpu", p
         opt, lambda t: 0.5 * (1 + math.cos(math.pi * t / steps)) if cfg.lr_decay else 1.0
     )
 
+    start_step = 1
+    if resume:
+        ckpt = torch.load(sorted(out.glob("ckpt_*.pt"))[-1], map_location=device)
+        model.load_state_dict(ckpt["model"])
+        opt.load_state_dict(ckpt["opt"])
+        start_step = ckpt["step"] + 1
+        sched.last_epoch = start_step - 1  # keep any lr schedule at the right position
+
     ckpt_at = set(log_steps(steps, cfg.n_ckpts))
     eval_at = set(log_steps(steps, cfg.n_evals)) | ckpt_at | set(mark_steps)
     history = []
-    if out:
+    if resume and (out / "history.jsonl").exists():
+        history = [json.loads(line) for line in (out / "history.jsonl").read_text().splitlines() if line.strip()]
+    if out and not resume:
         (out / "history.jsonl").write_text("")  # one json line per eval, appended as the run goes
     run_loss, run_n = 0.0, 0
     ema_step_s: float | None = None  # EMA of per-step wall time, for ETA logging
@@ -82,7 +100,7 @@ def train(cfg: Config, out_dir: str | Path | None = None, device: str = "cpu", p
         trk = trackio.init(**trk_kwargs)
 
     try:
-        for step in tqdm(range(1, steps + 1), desc="train", disable=not progress, mininterval=30):
+        for step in tqdm(range(start_step, steps + 1), desc="train", disable=not progress, mininterval=30):
             x, y, _ = sample(cfg.batch_size, train_gen)
             # cross-entropy on class indices (identical to cross-entropy against one-hot targets)
             loss = F.cross_entropy(model(x), y)
